@@ -30,16 +30,16 @@ It indexes and searches the contents of **PDF files** directly via OpenAI’s ve
    ```bash
    git clone https://github.com/your-username/openai-pdf-rag.git
    cd openai-pdf-rag
-2. **Install dependencies
+2. **Install dependencies**
   ```bash
   npm install
   ```
-3. **env file content
+3. **env file content**
   ```
   OPENAI_API_KEY=your-key
   VECTOR_STORE_ID=your-vector-id
   ```
-4. **Execute
+4. **Execute**
    ```
    npm install
    ```
