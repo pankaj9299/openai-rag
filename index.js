@@ -11,14 +11,14 @@ const MAX_PDFS = 10;
 const argv = process.argv.slice(2);
 const prompt = argv[0] || "Ask something about the PDFs.";
 const pdfDir = argv[1] || "./pdfs";
-// simple flag parser: --key value
+
 const flags = new Map();
 for (let i = 2; i < argv.length; i += 2) {
   if (argv[i]?.startsWith("--")) flags.set(argv[i], argv[i + 1] ?? true);
 }
 const MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
-const REUSE_VS_FLAG = flags.get("--reuse");                // e.g. vs_abc123
-const REUSE_VS_ENV  = process.env.VECTOR_STORE_ID || null; // from .env
+const REUSE_VS_FLAG = flags.get("--reuse");                
+const REUSE_VS_ENV  = process.env.VECTOR_STORE_ID || null; 
 
 if (!process.env.OPENAI_API_KEY) {
   console.error("Missing OPENAI_API_KEY in .env");
@@ -68,7 +68,7 @@ async function vectorStoreExists(id) {
     return true;
   } catch (e) {
     if (String(e.message).includes("HTTP 404")) return false;
-    throw e; // bubble other errors
+    throw e; 
   }
 }
 
@@ -78,15 +78,15 @@ async function uploadFile(filePath) {
   const buf = await fs.promises.readFile(filePath);
   const blob = new Blob([buf], { type: "application/pdf" });
   form.append("file", blob, path.basename(filePath));
-  form.append("purpose", "assistants"); // some accounts: "assistants_input"
+  form.append("purpose", "assistants"); 
 
   const res = await fetch(`${API}/files`, {
     method: "POST",
-    headers: headersNoJSON(), // let fetch set boundary
+    headers: headersNoJSON(), 
     body: form,
   });
   if (!res.ok) throw new Error(`HTTP ${res.status} @ /files\n${await res.text()}`);
-  return res.json(); // { id, filename, bytes, ... }
+  return res.json(); 
 }
 
 // ---------- Batch polling ----------
@@ -103,14 +103,12 @@ async function pollBatch(vectorStoreId, batchId) {
 }
 
 // ---------- Helpers to list VS files & sync new PDFs ----------
-/** Returns a Map<filename, file_id> of files already in the vector store */
 async function listVectorStoreFiles(vectorStoreId) {
   const namesToIds = new Map();
   let url = `/vector_stores/${vectorStoreId}/files?limit=100`;
   while (url) {
     const page = await api(url.replace(API, ""), { headers: headersNoJSON() });
     for (const item of page.data || []) {
-      // item may be {id, file_id}? Be robust:
       const candidateIds = [item.file_id, item.id].filter(Boolean);
       for (const fid of candidateIds) {
         try {
@@ -118,7 +116,7 @@ async function listVectorStoreFiles(vectorStoreId) {
           if (f?.filename) namesToIds.set(f.filename, f.id);
           break;
         } catch {
-          /* try next candidate */
+          // catch bugs
         }
       }
     }
@@ -131,7 +129,6 @@ async function listVectorStoreFiles(vectorStoreId) {
 
 /** Uploads ONLY new PDFs from pdfDir and attaches them to the existing VS */
 async function syncNewPdfsIntoVectorStore(vectorStoreId, pdfDir) {
-  // Local PDFs (up to MAX_PDFS)
   const localPdfs = fs.readdirSync(pdfDir)
     .filter(f => f.toLowerCase().endsWith(".pdf"))
     .slice(0, MAX_PDFS)
@@ -193,7 +190,7 @@ async function createAndIndexVectorStore(pdfDir) {
     fileIds.push(f.id);
   }
 
-  // 3) Attach via file batch (JSON) and poll
+  // 3) Attach via file batch (JSON)
   const batch = await api(`/vector_stores/${vs.id}/file_batches`, {
     method: "POST",
     headers: headersJSON(),
@@ -214,14 +211,13 @@ async function getOrCreateVectorStoreAndSync(pdfDir) {
   if (candidate) {
     const ok = await vectorStoreExists(candidate);
     if (ok) {
-      // 1) Always try to sync any new local PDFs into this existing store
+      // sync any new local PDFs into this existing store
       await syncNewPdfsIntoVectorStore(candidate, pdfDir);
       return candidate;
     }
     console.warn(`Vector store ${candidate} not found. Creating a new one...`);
   }
 
-  // No existing store → create fresh from local PDFs
   return createAndIndexVectorStore(pdfDir);
 }
 
